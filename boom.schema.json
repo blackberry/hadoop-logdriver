@@ -1,0 +1,22 @@
+{
+  "type": "record",
+  "name": "logBlock",
+  "fields": [
+    { "name": "second", "type": "long" },
+    { "name": "createTime", "type": "long" },
+    { "name": "blockNumber", "type": "long" },
+    { 
+      "name": "logLines", "type":
+      { 
+        "type": "array", "items":
+        { 
+          "type": "record", "name": "messageWithMillis", "fields":[
+            {"name": "ms", "type": "long" },
+            {"name": "eventId", "type": "int", "default": 0 },
+            {"name": "message", "type": "string" }
+          ]
+        }
+      }
+    }
+  ]
+}

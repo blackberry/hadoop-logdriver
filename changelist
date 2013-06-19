@@ -1,0 +1,59 @@
+LogDriver Change List
+=====================
+
+Version 1.1.9
+* Fixed major bug in archive code, causing data to go to the 'null' date directory.
+
+Version 1.1.8
+* Make the location of the kdestroy command configurable in Sawmill.
+
+Version 1.1.7
+* Sawmill init script will now start Sawmill as a dedicated user.
+* Sawmill will exit if it somehow authenticates without using a keytab file.
+* logsearch et al will now filter unparsable lines into an error file, instead of dying.
+* DateFormatter will now return null when given a null, instead of crashing.
+
+Version 1.1.6
+* Fixed issue where Sawmill never recovers from a loss of connection to the Kerberos server.
+* Updated Sawmill install script to clean up old files before installing.
+
+Version 1.1.5
+* Fixed errors when orphaned jobs' ids do not exist in Oozie.  They are now processed as though the job had failed.
+
+Version 1.1.4
+* Added a chomp to the log lines in the search utilities, to get around issues with extra carriage returns slipping through sawmill.
+* Added flag to LogMaintenance to clean up old files stuck in /working directories.
+* Fixed touch command so that it does not crash if the file already exists.
+
+Version 1.1.3
+* Added optimizations to LogMaintenance to handle keep-all and drop-all filters.
+* Fixed bug.  LockedFs was not realeasing connections to ZooKeeper.
+
+Version 1.1.2
+* Output goes to stdout if output dir is '-'. Closes #1.
+* Added verbosity flag.  Closes #4.
+* Fixed bug causing crash on zero length Avro blocks.
+* Filter no longer runs if there are no filters defined.
+
+Version 1.1.1
+* Added gz2bm.pg pig script for converting gzip files to boom files.
+  * Documentation is at http://github.rim.net/BB-IEng/HadoopLogging/wiki/Converting-gzip-files-to-boom-format
+* AlertToSmarts is now tested, and no longer beta.
+
+Version 1.1.0
+* Updates to the install script (no more rogue symlinks)
+* Major overhaul to the LogMaintenance tool
+  * Documentation is at http://github.rim.net/BB-IEng/HadoopLogging/wiki/Log-Maintenance
+* Added 'hfind' command.
+  * Documentation is at http://github.rim.net/BB-IEng/HadoopLogging/wiki/Hfind
+* Added support for alternate service directories in all tools (Issue #7)
+  * Add a -Dlogdriver.logdir.name=name (default is 'logs')
+* All log utilities (LogSearch, LogGrep, LogCat, LogMultiSearch) can now be run as Java actions in Oozie workflows.
+* Added 'readboom' command
+  * Documentation is at http://github.rim.net/BB-IEng/HadoopLogging/wiki/ReadBoom
+* Added Gzip load function for Pig (since the support in PigLoader is broken)
+  * com.rim.logdriver.pig.GzipLoadFunc
+* (Beta) The ability to send traps to Smarts from Oozie scripts using com.rim.logdriver.monitoring.AlertToSmarts as a Java action.
+
+Version 1.0.0 and earlier
+- See git logs

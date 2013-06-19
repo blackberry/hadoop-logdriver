@@ -1,0 +1,8 @@
+Package: Logdriver
+Version: [[version]]
+Section: misc
+Priority: optional
+Architecture: all
+Maintainer: Will Chartrand <wchartrand@blackberry.com>, Matt McDowell <mamcdowell@blackberry.com>
+Description: Logdriver
+Distribution: development

@@ -1,0 +1,194 @@
+<!-- 
+  Copyright 2013 BlackBerry, Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+ 
+       http://www.apache.org/licenses/LICENSE-2.0
+ 
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License. 
+-->
+
+<workflow-app xmlns="uri:oozie:workflow:0.1" name="mergejob">
+
+  <start to="move-to-working" />
+
+  <action name="move-to-working">
+    <java>
+      <job-tracker>${jobTracker}</job-tracker>
+      <name-node>${nameNode}</name-node>
+      <configuration>
+        <property>
+          <name>mapred.job.queue.name</name>
+          <value>${queueName}</value>
+        </property>
+        <property>
+          <name>${umaskProperty}</name>
+          <value>027</value>
+        </property>
+        <property>
+          <name>logdriver.logdir.name</name>
+          <value>${logdir}</value>
+        </property>
+      </configuration>
+      <main-class>com.rim.logdriver.LockedFs</main-class>
+      <arg>${zkConnectString}</arg>
+      <arg>${dcNumber}</arg>
+      <arg>${service}</arg>
+      <arg>${date}</arg>
+      <arg>${hour}</arg>
+      <arg>${component}</arg>
+      <arg>move ${nameNode}${baseDir}/incoming/* ${baseDir}/working/${wf:id()}_${wf:run()}/incoming/</arg>
+    </java>
+
+    <ok to="run-merge" />
+    <error to="fail" />
+  </action>
+
+  <action name="run-merge">
+    <map-reduce>
+      <job-tracker>${jobTracker}</job-tracker>
+      <name-node>${nameNode}</name-node>
+      <configuration>
+        <property>
+          <name>${umaskProperty}</name>
+          <value>027</value>
+        </property>
+        <property>
+          <name>mapred.job.queue.name</name>
+          <value>${queueName}</value>
+        </property>
+        <property>
+          <name>mapred.max.split.size</name>
+          <value>${targetFileSize}</value>
+        </property>
+        <property>
+          <name>dfs.block.size</name>
+          <value>${blockSize}</value>
+        </property>
+        <property>
+          <name>mapred.input.format.class</name>
+          <value>com.rim.logdriver.mapred.avro.AvroBlockInputFormat</value>
+        </property>
+        <property>
+          <name>mapred.mapper.class</name>
+          <value>com.rim.logdriver.mapred.avro.AvroBlockWriterMapper</value>
+        </property>
+        <property>
+          <name>mapred.output.key.class</name>
+          <value>org.apache.hadoop.io.BytesWritable</value>
+        </property>
+        <property>
+          <name>mapred.output.value.class</name>
+          <value>org.apache.hadoop.io.NullWritable</value>
+        </property>
+        <property>
+          <name>mapred.output.format.class</name>
+          <value>com.rim.logdriver.mapred.BinaryOutputFormat</value>
+        </property>
+        <property>
+          <name>output.file.extension</name>
+          <value>.bm</value>
+        </property>
+        <property>
+          <name>mapred.reduce.tasks</name>
+          <value>0</value>
+        </property>
+        <property>
+          <name>mapred.input.dir</name>
+          <value>${baseDir}/working/${wf:id()}_${wf:run()}/incoming/*</value>
+        </property>
+        <property>
+          <name>mapred.output.dir</name>
+          <value>${baseDir}/working/${wf:id()}_${wf:run()}/data</value>
+        </property>
+        <property>
+          <name>logdriver.output.file.prefix</name>
+          <value>${prefix}</value>
+        </property>
+      </configuration>
+    </map-reduce>
+
+    <ok to="move-to-data-and-delete-working"/>
+    <error to="move-to-failed-and-fail"/>
+  </action>
+
+  <action name="move-to-data-and-delete-working">
+    <java>
+      <job-tracker>${jobTracker}</job-tracker>
+      <name-node>${nameNode}</name-node>
+      <configuration>
+        <property>
+          <name>mapred.job.queue.name</name>
+          <value>${queueName}</value>
+        </property>
+        <property>
+          <name>${umaskProperty}</name>
+          <value>027</value>
+        </property>
+        <property>
+          <name>logdriver.logdir.name</name>
+          <value>${logdir}</value>
+        </property>
+      </configuration>
+      <main-class>com.rim.logdriver.LockedFs</main-class>
+      <arg>${zkConnectString}</arg>
+      <arg>${dcNumber}</arg>
+      <arg>${service}</arg>
+      <arg>${date}</arg>
+      <arg>${hour}</arg>
+      <arg>${component}</arg>
+      <arg>move ${nameNode}${baseDir}/working/${wf:id()}_${wf:run()}/data/*.bm ${baseDir}/data/</arg>
+      <arg>delete ${nameNode}${baseDir}/working/${wf:id()}_${wf:run()}</arg>
+      <arg>touch ${nameNode}${baseDir}/data/_READY</arg>
+      <arg>touch ${nameNode}${baseDir}/_READY</arg>
+    </java>
+
+    <ok to="end" />
+    <error to="fail" />
+  </action>
+
+
+  <action name="move-to-failed-and-fail">
+    <java>
+      <job-tracker>${jobTracker}</job-tracker>
+      <name-node>${nameNode}</name-node>
+      <configuration>
+        <property>
+          <name>mapred.job.queue.name</name>
+          <value>${queueName}</value>
+        </property>
+        <property>
+          <name>${umaskProperty}</name>
+          <value>027</value>
+        </property>
+        <property>
+          <name>logdriver.logdir.name</name>
+          <value>${logdir}</value>
+        </property>
+      </configuration>
+      <main-class>com.rim.logdriver.LockedFs</main-class>
+      <arg>${zkConnectString}</arg>
+      <arg>${dcNumber}</arg>
+      <arg>${service}</arg>
+      <arg>${date}</arg>
+      <arg>${hour}</arg>
+      <arg>${component}</arg>
+      <arg>move ${nameNode}${baseDir}/working/${wf:id()}_${wf:run()} ${baseDir}/failed/</arg>
+    </java>
+    <ok to="fail" />
+    <error to="fail" />
+  </action>
+
+  <kill name="fail">
+    <message>Something failed! ${wf:errorMessage(wf:lastErrorNode())}</message>
+  </kill>
+
+  <end name="end" />
+
+</workflow-app>

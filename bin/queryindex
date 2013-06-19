@@ -1,0 +1,42 @@
+#!/bin/bash
+
+if [ "x$LOGDRIVER_CONF_DIR" == "x" ]
+then
+  LOGDRIVER_CONF_DIR=/etc/logdriver/conf
+fi
+. $LOGDRIVER_CONF_DIR/logdriver-env.sh
+. $LOGDRIVER_HOME/bin/logdriver-common.sh
+
+while [[ -n "$1" ]]
+do
+  if [[ "$1" = "-h" ]]
+    then echo "Queryindex will display disk use and available dates for logged data."
+         echo "Usage: queryindex [options] ['DC'] ['service'] ['type'] ['component']"
+         echo "   Each of DC, service, type and component can be a regex"
+         echo "     -p                          Print names of individual matched components"
+         echo "     -t 'start' 'end'            Display only components with indexed data between these dates"
+         echo "   The following options require -p"
+         echo "     -d                          Print the available date range for each component"
+         echo "     -s                          Print the total size of each component"
+         echo "     -i                          Print average daily ingest for the lifetime of this component"
+         echo "     -l                          Print all data for each component on a single line"
+         echo "     -a                          Display ingest activity between the specified dates, requires -t*"
+         echo "     * Display of ingest activity requires multiple queries to HDFS (can be slow)"
+         exit
+  elif [[ "$1" = "-t" ]]
+    then
+      startdate=`date -d "$2" +%s`
+      enddate=`date -d "$3" +%s`
+      args="$args -t $startdate $enddate"
+      shift 2
+  elif [[ "${1:0:1}" = "-" ]]
+    then
+      args="$args $1"
+  else
+    args="$args '$1'"
+  fi
+  shift
+done
+
+#echo "hadoop jar ${LOGDRIVER_HOME}/jar-with-dependencies/logdriver-with-dependencies.jar com.rim.logdriver.util.QueryIndex $args"
+hadoop jar ${LOGDRIVER_HOME}/jar-with-dependencies/logdriver-with-dependencies.jar com.rim.logdriver.util.QueryIndex $args

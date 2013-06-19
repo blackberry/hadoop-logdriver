@@ -1,0 +1,5 @@
+#!/bin/sh
+getent group sawmill >/dev/null || groupadd -r \sawmill
+getent passwd sawmill >/dev/null || useradd -r -g \sawmill -m -s \
+/bin/bash -c "User for sawmill tool." \sawmill
+exit 0

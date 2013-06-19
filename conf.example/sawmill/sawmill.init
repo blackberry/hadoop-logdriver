@@ -1,0 +1,215 @@
+#!/bin/bash
+#
+#  /etc/rc.d/init.d/sawmill
+#
+# Starts the sawmill daemon
+#
+# chkconfig: - 95 5
+# description: Collects logs, and writes them to Hadoop.
+### BEGIN INIT INFO
+# Provides:       sawmill
+# Required-Start: $local_fs $remote_fs $network
+# Required-Stop:  $local_fs $remote_fs $network
+# Default-Start:
+# Default-Stop:
+# Description:    Start the sawmill service
+### END INIT INFO
+
+setup() {
+  if [ "x$LOGDRIVER_CONF_DIR" == "x" ]
+  then
+    LOGDRIVER_CONF_DIR=/etc/logdriver/conf
+  fi
+  . $LOGDRIVER_CONF_DIR/logdriver-env.sh
+  . $LOGDRIVER_HOME/bin/logdriver-common.sh
+
+  if [ "x$SAWMILL_CONF_DIR" == "x" ]
+  then
+    SAWMILL_CONF_DIR=$LOGDRIVER_CONF_DIR/sawmill
+  fi
+  . $SAWMILL_CONF_DIR/sawmill-env.sh
+
+  PROG="sawmill"
+
+  OS=unknown
+
+  if [ -e "/etc/SuSE-release" ]
+  then
+    OS=suse
+  elif [ -e "/etc/redhat-release" ]
+  then
+    OS=redhat
+  else
+    echo "Could not determine OS."
+  fi
+
+  # Source function library.
+  [ "$OS" == "redhat" ] && . /etc/init.d/functions
+  [ "$OS" == "suse"   ] && . /etc/rc.status
+
+  RETVAL=0
+}
+
+start() {
+  setup
+
+  # Check if sawmill is already running
+  if [ -f $SAWMILL_PID_FILE ]
+  then
+    PID=`head -1 $SAWMILL_PID_FILE`
+    if [ -e /proc/$PID ]
+    then
+      echo "$PROG is already running (PID $PID)"
+      return 1
+    else
+      rm -f $SAWMILL_PID_FILE
+    fi
+  fi
+
+  echo -n $"Starting $PROG: "
+  # kdestroy first to ensure that we're not logged in as anyone else.
+  # Shouldn't be, if this is a dedicated user.
+  $KDESTROY
+  nohup java $JAVA_OPTS \
+        -cp $SAWMILL_CONF_DIR:`logdriver classpath` \
+        com.rim.logdriver.sawmill.Sawmill \
+        $SAWMILL_CONF >$SAWMILL_INIT_LOG 2>&1 &
+
+  RETVAL=$?
+  PID=$!
+
+  if [ $RETVAL -eq 0 ]
+  then
+    [ "$OS" == "redhat"  ] && success
+    [ "$OS" == "suse"    ] && echo -n $rc_done
+    [ "$OS" == "unknown" ] && echo -n "... done"
+    echo $PID > /var/run/sawmill/sawmill.pid
+  else
+    failure
+  fi
+  echo
+  return $RETVAL
+}
+
+stop() {
+  setup
+
+  echo -n $"Stopping $PROG: "
+
+  if [ -f $SAWMILL_PID_FILE ]
+  then
+    PID=`head -1 $SAWMILL_PID_FILE`
+    if [ -e /proc/$PID ]
+    then
+      kill $PID
+      for i in `seq 1 60`
+      do
+        sleep 1
+
+        if [ ! -e /proc/$PID ]
+        then
+          rm -f $SAWMILL_PID_FILE
+          [ "$OS" == "redhat"  ] && success
+          [ "$OS" == "suse"    ] && echo -n $rc_done
+          [ "$OS" == "unknown" ] && echo -n "... done"
+          RETVAL=0
+          break
+        fi
+      done
+
+      if [ -e /proc/$PID ]
+      then
+        echo -n "Trying kill -9 "
+        kill -9 $PID
+
+        for i in `seq 1 60`
+        do
+          sleep 1
+
+          if [ ! -e /proc/$PID ]
+          then
+            rm -f $SAWMILL_PID_FILE
+            [ "$OS" == "redhat"  ] && success
+            [ "$OS" == "suse"    ] && echo -n $rc_done
+            [ "$OS" == "unknown" ] && echo -n "... done"
+            RETVAL=0
+            break
+          fi
+        done
+      fi
+
+      if [ -e /proc/$PID ]
+      then
+        echo "Could not kill "
+        [ "$OS" == "redhat"  ] && failure
+        [ "$OS" == "suse"    ] && echo -n $rc_failed
+        [ "$OS" == "unknown" ] && echo -n "... failed"
+        RETVAL=1
+      fi
+
+    else
+      echo -n "PID $PID is not running "
+      rm -f $SAWMILL_PID_FILE
+      [ "$OS" == "redhat"  ] && success
+      [ "$OS" == "suse"    ] && echo -n $rc_done
+      [ "$OS" == "unknown" ] && echo -n "... done"
+      RETVAL=0
+    fi
+
+  else
+    echo -n "Could not find $SAWMILL_PID_FILE"
+    [ "$OS" == "redhat"  ] && failure
+    [ "$OS" == "suse"    ] && echo -n $rc_failed
+    [ "$OS" == "unknown" ] && echo -n "... failed"
+    RETVAL=1
+
+  fi
+
+  echo
+  return $RETVAL
+}
+
+restart() {
+  stop
+  start
+}
+
+# make functions available under su
+export -f setup
+export -f start
+export -f stop
+export -f restart
+
+setup
+case "$1" in
+start)
+  if [ "x$SAWMILL_USER" != "x" ]
+  then
+    su $SAWMILL_USER -c start
+  else
+    start
+  fi
+  ;;
+stop)
+  if [ "x$SAWMILL_USER" != "x" ]
+  then
+    su $SAWMILL_USER -c stop
+  else
+    stop
+  fi
+  ;;
+restart)
+  if [ "x$SAWMILL_USER" != "x" ]
+  then
+    su $SAWMILL_USER -c restart
+  else
+    restart
+  fi
+  ;;
+*)
+  echo $"Usage: $0 {start|stop|restart}"
+  exit 1
+esac
+
+exit $?
+

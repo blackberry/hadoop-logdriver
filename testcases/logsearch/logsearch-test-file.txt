@@ -1,0 +1,17 @@
+2012-02-28T10:00:01Z This is a test message.
+2012-02-28T10:00:02Z THIS IS A TEST MESSAGE.
+2012-02-28T10:00:03Z This line contains a lower case ä with an umlaut. 
+2012-02-28T10:00:04Z This line contains an upper case Ä with an umlaut. 
+2012-02-28T10:00:05Z French, with accents: fenêtre précipité frère
+2012-02-28T10:00:06Z Upper case French, with accents: FENÊTRE PRÉCIPITÉ FRÈRE
+2012-02-28T10:00:07Z This line contains Russian: человек
+2012-02-28T10:00:08Z This line contains the same word, but uppercase: ЧЕЛОВЕК
+2012-02-28T10:00:10Z Some arabic: رجل
+2012-02-28T10:00:11Z Lower-case Greek: αβγδε
+2012-02-28T10:00:12Z Upper-case Greek: ΑΒΓΔΕ
+2012-02-28T10:00:13Z Here are a bunch of numbers: 1.61803398875 3.14159265358979 123,456,789.00 123.456.789,00 1.602E-19 1.602x10^-19
+2012-02-28T10:00:14Z Here are some arrangements of symbols that look like escape characters or flags: \A &A /\A \\A //A ##A #!A &! $@ @$ +%s -i -h --help 
+2012-02-28T10:00:15Z Here are some control character sequnces: ^C ^X ^M
+2012-02-28T10:00:16Z Here is a date that looks like the beginning of a log line: 2012-02-28T10:00:01Z
+2012-02-28T10:00:17Z The line below this has only the date as a message:
+2012-02-28T10:00:18Z 2012-02-28T10:00:01Z

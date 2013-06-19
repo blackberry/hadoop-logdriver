@@ -1,0 +1,157 @@
+#!/bin/bash
+
+# Copyright 2013 BlackBerry, Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License. 
+
+if [ "x$LOGDRIVER_CONF_DIR" == "x" ]
+then
+  LOGDRIVER_CONF_DIR=/etc/logdriver/conf
+fi
+. $LOGDRIVER_CONF_DIR/logdriver-env.sh
+. $LOGDRIVER_HOME/bin/logdriver-common.sh
+
+version() {
+  cat ${LOGDRIVER_HOME}/VERSION
+}
+
+classpath() {
+  ## If hadoop is not installed, this will throw an error.  Then just don't 
+  ## include the hadoop classpath.
+  hadoop_classpath=`hadoop classpath`
+  if [ "x$hadoop_classpath" != "x" ]
+  then
+    echo -n $hadoop_classpath
+    echo -n :
+  fi
+  
+  echo -n "${LOGDRIVER_CONF_DIR}"
+  echo -n ":${LOGDRIVER_HOME}/*"
+  echo -n ":${LOGDRIVER_HOME}/lib/*"
+  echo
+}
+
+deploy-workflow() {
+  wf_name=$1
+
+  local_dir=$LOGDRIVER_HOME/oozie/workflows/$wf_name
+  hdfs_dir=/oozie/workflows/$wf_name
+
+  echo "Deploying $wf_name"
+
+  # If it already exists, then delete the $hdfs_dir
+  if $DFS_TEST -e $hdfs_dir
+  then
+    echo "Deleting existing HDFS directory $hdfs_dir"
+    $DFS_RMR $hdfs_dir
+  fi
+
+  echo "Copying files to HDFS"
+  $DFS_MKDIR $hdfs_dir
+  $DFS_PUT $local_dir/workflow.xml $hdfs_dir
+
+  $DFS_MKDIR $hdfs_dir/lib
+  $DFS_PUT $LOGDRIVER_HOME/*.jar $LOGDRIVER_HOME/lib/*.jar $hdfs_dir/lib/
+
+  echo "Done deploying $wf_name"
+}
+
+deploy-oozie-workflows() {
+  # Deploy mergejob
+  echo -n "Deploy mergejob? [y/n] "
+  read response
+  if [[ "$response" == "y" || "$response" == "Y" ]]
+  then
+    deploy-workflow mergejob
+  fi
+
+  echo
+  echo -n "Deploy filterjob? [y/n] "
+  read response
+  if [[ "$response" == "y" || "$response" == "Y" ]]
+  then
+    deploy-workflow filterjob
+  fi
+
+  echo
+  echo -n "Deploy filter configurations? [y/n] "
+  read response
+  if [[ "$response" == "y" || "$response" == "Y" ]]
+  then
+    if $DFS_LS '/oozie/workflows/filterjob/*.yaml' >/dev/null 2>/dev/null
+    then
+      echo "Deleting existing filter configurations"
+      $DFS_RMR '/oozie/workflows/filterjob/*.yaml'
+    fi
+
+    echo "Copying filter configurations for filterjob"
+    $DFS_PUT $LOGDRIVER_CONF_DIR/filterjob/*.yaml /oozie/workflows/filterjob/
+  fi
+}
+
+setup-logmaintenance() {
+  . $LOGDRIVER_CONF_DIR/logmaintenance/logmaintenance-env.sh
+
+  ## Create a local logmaintenance user and group, if they do not exist
+  getent group logmaintenance >/dev/null || groupadd -r logmaintenance
+  getent passwd logmaintenance >/dev/null || useradd -r -g logmaintenance -m \
+    -s /bin/bash -c "LogDriver Log Maintenace" logmaintenance
+
+  ## Create logs directory
+  mkdir -p $LOGMAINTENANCE_LOG_DIR
+  chown -R logmaintenance:logmaintenance $LOGMAINTENANCE_LOG_DIR
+
+  ## Prompt to add configuration to the crontab
+  if `crontab -l -u logmaintenance | grep '/usr/bin/logmaintenance' >/dev/null 2>&1`
+  then
+    echo "It looks like there is already a crontab entry for LogMaintenance"
+    crontab -u logmaintenance -l | grep '/usr/bin/logmaintenance'
+  else
+    cron_entry='*/15 * * * * /usr/bin/logmaintenance'
+    echo "Would you like to install the following line to logmaintenance's crontab?"
+    echo "$cron_entry"
+    echo "Add line? [y/N]"
+    read response
+    if [[ "$response" == "y" || "$response" == "Y" ]]
+    then
+      tmpfile=`mktemp`
+      crontab -u logmaintenance -l >> $tmpfile
+      echo "$cron_entry" >> $tmpfile
+      crontab -u logmaintenance $tmpfile
+      rm -f $tmpfile
+    else
+      echo "Not changing the crontab."
+    fi
+  fi
+  
+}
+
+case "$1" in
+version)
+  version
+  ;;
+classpath)
+  classpath
+  ;;
+deploy-oozie-workflows)
+  deploy-oozie-workflows
+  ;;
+setup-logmaintenance)
+  setup-logmaintenance
+  ;;
+*)
+  echo $"Usage: $0 {version|classpath|deploy-oozie-workflows|setup-logmaintenance}"
+  exit 1
+esac
+
+exit $?

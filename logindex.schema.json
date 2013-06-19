@@ -1,0 +1,21 @@
+{
+  "name": "DC",
+  "type": {
+    "name": "service",
+    "type": {
+      "name": "type",
+      "type": {
+        "name": "component",
+        "fields": [
+          {"name": "startDate", "type": "long", "description": "Date of earliest logs" },
+          {"name": "endDate", "type": "long", "description": "Date of latest logs" },
+          {"name": "archiveDate", "type": "long", "description": "Date before which logs are archived" },
+          {"name": "totalSize", "type": "double", "description": "Total size in bytes of all logs" },
+          {"name": "dataSize", "type": "double", "description": "Size in bytes of all non-incoming and non-archived logs" },
+          {"name": "archiveSize", "type": "double", "description": "Size in bytes of all archived logs" },
+          {"name": "incomingSize", "type": "double", "description": "Size in bytes of all incoming logs at time of index generation" }
+        ]
+      }
+    }
+  }
+}

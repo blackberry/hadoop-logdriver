@@ -1,0 +1,69 @@
+## Notes
+# Note that this is a YAML file, so indentation matters.
+#
+# When the filter job is run, it will use the file <service>.yaml to
+# determine which filters are used.  If there is no such file, then no
+# filtering will be done on that service.
+#
+# These YAML files must be located in HDFS to be active.  If you add, remove,
+# or change any YAML file, be sure to use the
+# 'logdriver deploy-oozie-workflows' command to redeploy the configuration.
+# You can say no to redeploying the workflows themselves, and only yes to
+# 'Deploy filter configurations?'
+
+## File Formatting (with examples)
+#
+# When writing the configuration files, there is always one top level entry
+# named 'filters'.  Technically, this file contains one associative array,
+# with the key 'filters' being the only key, and the value being a list of
+# filter sets.
+#
+# filters:
+#
+#  # Each filter set has a key which is a regular expression that
+#  # matches the component name.  Each component will only use the first
+#  # filter set that they match.  So in this example, wt-gprs would use the
+#  # first filter set only, while wt-zyz would use the second filter set only.
+#  - "wt-gprs":
+#
+#    # Within each filter set, there is a list of rules.  If any of these
+#    # rules are true, then that log line is kept.  If none of the rules are
+#    # true then the log line is discarded.
+#    # All rules are listed as an associative array.  They always have a key
+#    # 'type' that defines the rule type.  Which other keys are required will
+#    # depend on the filter type.
+#
+#    # A rule of type 'regex' uses a Java regular expression match (anywhere
+#    # in the line.  This rule would match 'hello 124' or 'good-134-bye'.
+#    - { type: regex,       pattern: "1[23]4" }
+#
+#    # A rule of type 'stringmatch' only matches that literal string, anywhere
+#    # in the line.
+#    - { type: stringmatch, pattern: "abc"    }
+#    - { type: stringmatch, pattern: "de"     }
+#
+#  - "wt-.*":
+#    - { type: stringmatch, pattern: "1234"   }
+#
+#  - "srp.*":
+#    # The special rule KeepAll should not alone in a list.  It will keep all
+#    # of the logs for the matching component.
+#    - { type: KeepAll }
+#
+#  - "pb.*":
+#    # The special rule DropAll should also be alone in a list.  It will cause
+#    # the log files to be deleted without any processing.
+#    - { type: DropAll }
+
+## Here is the example ruleset, layed out without comments
+filters:
+  - "wt-gprs":
+    - { type: regex,       pattern: "1[23]4" }
+    - { type: stringmatch, pattern: "abc"    }
+    - { type: stringmatch, pattern: "de"     }
+  - "wt-.*":
+    - { type: stringmatch, pattern: "1234"   }
+  - "srp.*":
+    - { type: KeepAll }
+  - "pb.*":
+    - { type: DropAll }

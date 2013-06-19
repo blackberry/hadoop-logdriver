@@ -1,0 +1,186 @@
+#!/bin/bash
+
+# Copyright 2013 BlackBerry, Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License. 
+
+run_logmaintenance() {
+  line="$*"
+
+  ## catch comments and blank lines
+  if [[ "$line" =~ "^[:blank:]*(#.*)?$" ]]
+  then
+    return 0
+  fi
+
+  tmpdir=$LOGMAINTENANCE_LOG_DIR/$date.tmp.$(date +%s).$$
+  mkdir -p $tmpdir
+
+  ## Set the location for the Kerberos ticket cache
+  export KRB5CCNAME=$tmpdir/krb5_cc
+
+  ## pull out the entries in the line
+  read username dc service principal keytab options <<< $line
+
+  (
+    ## All fields up to keytab must be defined
+    ## (but principal and keytab can be '-')
+    if [[ "x$keytab" == "x" ]]
+    then
+      echo "Bad config (missing fields) on line: $line"
+      continue
+    fi
+
+    ## Say what we're going to do
+    echo "Got line: $username $dc $service $principal $keytab $options"
+    echo -n "Running logmaintenance for: $username $dc $service"
+    if [[ "$principal" != "-" && "$keytab" != "-" ]]
+    then
+      echo -n " $principal $keytab"
+    fi
+    echo "$options"
+
+    ## Now log in with the keytab, if it was supplied.
+    if [[ "$principal" != "-" && "$keytab" != "-" ]]
+    then
+      echo " $principal $keytab"
+
+      ## kinit or fail
+      if ! $KINIT -5 -k -t "$keytab" "$principal"
+      then
+        echo "[ERROR] kinit failed."
+        continue
+      fi
+    else
+      echo
+      echo "No principal or keytab specified"
+    fi
+
+    ## Run the job
+    cmd="java -cp "`logdriver classpath`" com.rim.logdriver.admin.LogMaintenance -Doozie.auth.token.cache=false $options $username $dc $service"
+
+    export cmd
+    (
+      flock --exclusive 200 || exit 1
+      echo "Running: $cmd"
+      $cmd
+    ) 200>$LOGMAINTENANCE_LOG_DIR/locks/$username.lock
+
+    echo
+  ) > $tmpdir/log.txt 2>&1
+
+  ## Check the tmp file for errors and report them
+  ## First, just look for 'error'
+  touch $tmpdir/errors.txt
+  grep -i error $tmpdir/log.txt | grep -v ': Oozie Job Stats :' >> $tmpdir/errors.txt
+
+  ## If there was not a Job Stats line, then that's probably bad.
+  ## If the job stats line has failed or error != 0, that's bad too.
+  if [[ `grep "Oozie Job Stats : Merge  :" $tmpdir/log.txt | wc -l` == "0" ]]
+  then
+    echo "[ERROR] No Merge Job Stats found in log." >> $tmpdir/errors.txt
+  elif grep "Oozie Job Stats : Merge  :" $tmpdir/log.txt | grep -v "failed=0 errors=0" >/dev/null
+  then
+    echo "[ERROR] Failed or Errored Merge Jobs found." >> $tmpdir/errors.txt
+  fi
+
+  if [[ `grep "Oozie Job Stats : Filter :" $tmpdir/log.txt | wc -l` == "0" ]]
+  then
+    echo "[ERROR] No Filter Job Stats found in log." >> $tmpdir/errors.txt
+  elif grep "Oozie Job Stats : Filter :" $tmpdir/log.txt | grep -v "failed=0 errors=0" >/dev/null
+  then
+    echo "[ERROR] Failed or Errored Filter Jobs found." >> $tmpdir/errors.txt
+  fi
+
+  ## Email out the error information
+  if [[ -s "$tmpdir/errors.txt" && "x$EMAIL_ADDRESS" != "x" ]]
+  then
+    if [[ "x$SENDMAIL" == "x" ]]
+    then
+      SENDMAIL=/usr/sbin/sendmail
+    fi
+
+    tmpmail=$tmpdir/mail.txt
+    (
+      cat <<END
+To: $EMAIL_ADDRESS
+Subject: Errors in logmaintenance $date $dc $service $options
+Content-Type: multipart/mixed; boundary=__________BOUNDARY__________
+MIME-Version: 1.0
+
+--__________BOUNDARY__________
+Content-Type: text/plain
+
+END
+    ) >> $tmpmail
+    cat $tmpdir/errors.txt >> $tmpmail
+    (
+    cat <<END
+
+--__________BOUNDARY__________
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename=logmaintenance.$date.$dc.$service.txt
+
+END
+    ) >> $tmpmail
+    base64 $tmpdir/log.txt >> $tmpmail
+    echo "--__________BOUNDARY__________--" >> $tmpmail
+    cat $tmpmail | $SENDMAIL -oi -t
+  fi
+}
+
+
+if [ "x$LOGDRIVER_CONF_DIR" == "x" ]
+then
+  LOGDRIVER_CONF_DIR=/etc/logdriver/conf
+fi
+. $LOGDRIVER_CONF_DIR/logdriver-env.sh
+. $LOGDRIVER_HOME/bin/logdriver-common.sh
+. $LOGDRIVER_CONF_DIR/logmaintenance/logmaintenance-env.sh
+
+if [ -z "$MAX_CONCURRENT_JOBS" ]
+then
+  MAX_CONCURRENT_JOBS=0
+fi
+
+mkdir -p $LOGMAINTENANCE_LOG_DIR/locks/
+
+(
+  ## First, grab an exclusive lock, or just exit.
+  flock --exclusive --nonblock 200 || exit 1
+
+  date=`date +%Y%m%d_%H%M%S`
+  export date
+
+  export -f run_logmaintenance
+  xargs -a $LOGDRIVER_CONF_DIR/logmaintenance/logmaintenance.conf -L 1 -P $MAX_CONCURRENT_JOBS -I '{}' bash -c 'run_logmaintenance "$@"' _ {}
+
+  ## Consolidate logs
+  cat $LOGMAINTENANCE_LOG_DIR/$date.*/log.txt > $LOGMAINTENANCE_LOG_DIR/$date.log
+
+  ## Delete temp files
+  rm -rf $LOGMAINTENANCE_LOG_DIR/$date.tmp.*
+
+  ## Delete old files
+  if [[ "x$DELETE_LOGS_AFTER_DAYS" == "x" ]]
+  then
+    DELETE_LOGS_AFTER_DAYS=7
+  fi
+  find $LOGMAINTENANCE_LOG_DIR -mtime +$DELETE_LOGS_AFTER_DAYS -delete
+
+  ## Compress all the log files
+  find $LOGMAINTENANCE_LOG_DIR -name '*.log' -exec gzip -9 '{}' \;
+
+) 200>$LOGMAINTENANCE_LOG_DIR/locks/logmaintenance.global.lock
+
