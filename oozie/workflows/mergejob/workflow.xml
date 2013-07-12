@@ -55,6 +55,15 @@
       <job-tracker>${jobTracker}</job-tracker>
       <name-node>${nameNode}</name-node>
       <configuration>
+        <!-- Issue #4.  This is a workaround until the JobTracker is patched
+             to use this value for the JobTracker config.  Until then, it
+             uses the client config, so we need to increase it here.
+        -->
+        <property>
+          <name>mapreduce.jobtracker.split.metainfo.maxsize</name>
+          <value>100000000</value>
+        </property>
+
         <property>
           <name>${umaskProperty}</name>
           <value>027</value>
