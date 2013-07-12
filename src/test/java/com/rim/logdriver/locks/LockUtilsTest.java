@@ -2,20 +2,14 @@ package com.rim.logdriver.locks;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.zookeeper.server.ZooKeeperServer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -23,26 +17,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.rim.logdriver.fs.PathInfo;
+import com.rim.logdriver.test.util.LocalZkServer;
 
 public class LockUtilsTest {
   private static final Logger LOG = LoggerFactory
       .getLogger(LockUtilsTest.class);
 
-  private static final int clientPort = 21818; // non-standard
-  private static final int numConnections = 5000;
-  private static final int tickTime = 2000;
-
-  private File dir;
+  private LocalZkServer zkServer;
   private Configuration conf;
-  private ZooKeeperServer server;
 
-  private Class<?> factoryClass;
-  private Object standaloneServerFactory;
-
-  public Configuration getConf() {
-    return conf;
-  }
-  
   /**
    * Setup a local, embedded zookeeper instance, writing to temp/zookeeper.
    * 
@@ -50,54 +33,10 @@ public class LockUtilsTest {
    */
   @Before
   public void setup() throws Exception {
-    String dataDirectory = System.getProperty("java.io.tmpdir");
-
-    dir = new File(dataDirectory, "zookeeper").getAbsoluteFile();
-
-    while (dir.exists()) {
-      LOG.info("deleting {}", dir);
-      FileUtils.deleteDirectory(dir);
-    }
-
-    server = new ZooKeeperServer(dir, dir, tickTime);
-
-    // The class that we need changed name between CDH3 and CDH4, so let's check
-    // for the right version here.
-    try {
-      factoryClass = Class
-          .forName("org.apache.zookeeper.server.NIOServerCnxnFactory");
-
-      standaloneServerFactory = factoryClass.newInstance();
-      Method configure = factoryClass.getMethod("configure",
-          InetSocketAddress.class, Integer.TYPE);
-      configure.invoke(standaloneServerFactory, new InetSocketAddress(
-          clientPort), numConnections);
-      Method startup = factoryClass.getMethod("startup", ZooKeeperServer.class);
-      startup.invoke(standaloneServerFactory, server);
-
-    } catch (ClassNotFoundException e) {
-      LOG.info("Did not find NIOServerCnxnFactory");
-      try {
-        factoryClass = Class
-            .forName("org.apache.zookeeper.server.NIOServerCnxn$Factory");
-
-        Constructor<?> constructor = factoryClass.getConstructor(
-            InetSocketAddress.class, Integer.TYPE);
-        standaloneServerFactory = constructor.newInstance(
-            new InetSocketAddress(clientPort), numConnections);
-        Method startup = factoryClass.getMethod("startup",
-            ZooKeeperServer.class);
-        startup.invoke(standaloneServerFactory, server);
-
-      } catch (ClassNotFoundException e1) {
-        LOG.info("Did not find NIOServerCnxn.Factory");
-        throw new ClassNotFoundException(
-            "Can't find NIOServerCnxnFactory or NIOServerCnxn.Factory");
-      }
-    }
+    zkServer = new LocalZkServer();
 
     conf = new Configuration();
-    conf.set("zk.connect.string", "localhost:" + clientPort);
+    conf.set("zk.connect.string", "localhost:" + zkServer.getClientport());
   }
 
   @Test
@@ -353,14 +292,6 @@ public class LockUtilsTest {
   public void cleanup() throws InterruptedException, IOException,
       SecurityException, NoSuchMethodException, IllegalArgumentException,
       IllegalAccessException, InvocationTargetException {
-    server.shutdown();
-
-    Method shutdown = factoryClass.getMethod("shutdown", new Class<?>[] {});
-    shutdown.invoke(standaloneServerFactory, new Object[] {});
-
-    while (dir.exists()) {
-      LOG.info("deleting {}", dir);
-      FileUtils.deleteDirectory(dir);
-    }
+    zkServer.shutdown();
   }
 }
