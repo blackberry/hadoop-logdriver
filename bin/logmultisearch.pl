@@ -64,6 +64,7 @@ my $quiet = 1;
 my $redirects = " 2>$local_output";
 my $forceremote = 0;
 my $forcelocal = 0;
+my $queue_name = "logsearch";
 
 my @args = ();
 while (@ARGV > 0) {
@@ -193,6 +194,7 @@ $mr_opts .= " -Dmapred.output.compression.codec="
               . "org.apache.hadoop.io.compress.SnappyCodec";
 $mr_opts .= " -Dmapred.max.split.size=" . (256*1024*1024);
 $mr_opts .= " -Dlogdriver.output.field.separator=" . escape($field_separator);
+$mr_opts .= " -Dmapred.job.queue.name=" . escape($queue_name);
 
 ## Get the list of additional jars we'll need for pig
 my $additional_jars = "$LOGDRIVER_HOME/$LOGDRIVER_JAR";
@@ -320,7 +322,7 @@ elsif ($forceremote || $size > $maxlocalsize * 1024 * 1024) {
     print STDERR "Results are ".(int(100*$size/(1024*1024))/100)." MB. Using non-local sort...\n";
   }
 
-  my $pig_cmd = "pig -Dpig.additional.jars=$additional_jars $pig_opts $props"
+  my $pig_cmd = "pig -Dmapred.job.queue.name=$queue_name -Dpig.additional.jars=$additional_jars $pig_opts $props"
           . " -f $PIG_DIR/formatAndSort.pg $redirects 1>&2";
 
   $quiet or print STDERR "Running: $pig_cmd\n";
