@@ -309,7 +309,7 @@ elsif ($forceremote || $size > $maxlocalsize * 1024 * 1024) {
   }
 
   my $pig_cmd = "HADOOP_CONF_DIR=/dev/null /usr/lib/pig/bin/pig -Dpig.additional.jars=$additional_jars $pig_opts $props"
-          . " -x local -f $PIG_DIR/formatAndSort.pg $redirects 1>&2";
+          . " -x local -f $PIG_DIR/formatAndSortLocal.pg $redirects 1>&2";
 
   ## Copy the tmp folder from HDFS to the local directory, and delete the remote folder
   (0 == system("mkdir -p $tmp")) 
