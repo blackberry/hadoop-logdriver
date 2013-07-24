@@ -211,17 +211,7 @@ for my $opt (@D_options) {
 
 ## Add the required properties
 my $props = '';
-$props .= " -param tmpdir=" . escape($tmp);
 $props .= " -param dateFormat=" . escape($date_format);
-
-## Check for an out of '-', meaning write to stdout
-if ($out eq '-') {
-  $props.= " -param out=$tmp/final";
-}
-else {
-  $props .= " -param out=" . escape($out);
-}
-
 $props .= " -param fs=" . escape($field_separator_in_hex);
 
 my $mkdir_cmd = "$DFS_MKDIR $tmp/strings";
@@ -321,6 +311,17 @@ elsif ($forceremote || $size > $maxlocalsize * 1024 * 1024) {
   } else {
     print STDERR "Results are ".(int(100*$size/(1024*1024))/100)." MB. Using non-local sort...\n";
   }
+  
+  ## Set input parameter for pig job
+  $props .= " -param tmpdir=" . escape($tmp);
+
+  ## Check for an out of '-', meaning write to stdout
+  if ($out eq '-') {
+    $props.= " -param out=$tmp/final";
+  }
+  else {
+    $props .= " -param out=" . escape($out);
+  }
 
   my $pig_cmd = "pig -Dmapred.job.queue.name=$queue_name -Dpig.additional.jars=$additional_jars $pig_opts $props"
           . " -f $PIG_DIR/formatAndSort.pg $redirects 1>&2";
@@ -348,6 +349,23 @@ elsif ($forceremote || $size > $maxlocalsize * 1024 * 1024) {
     print STDERR "Results are ".(int(100*$size/(1024*1024))/100)." MB. Sorting locally...\n";
   }
 
+  ## Create a local tmp folder for the data needed by format and sort
+  my $local_tmp = `mktemp -d`;
+  chomp $local_tmp;
+  (0 == system("mkdir $local_tmp/tmp"))
+    || die $!;
+
+  ## Set input parameter for pig job
+  $props .= " -param tmpdir=$local_tmp/$tmp";
+
+  ## Check for an out of '-', meaning write to stdout
+  if ($out eq '-') {
+    $props.= " -param out=$local_tmp/$tmp/final";
+  }
+  else {
+    $props .= " -param out=$local_tmp/$out";
+  }
+
   my $pig_cmd = "HADOOP_CONF_DIR=/dev/null /usr/lib/pig/bin/pig -Dpig.additional.jars=$additional_jars $pig_opts $props"
           . " -x local -f $PIG_DIR/formatAndSortLocal.pg $redirects 1>&2";
 
@@ -366,17 +384,18 @@ elsif ($forceremote || $size > $maxlocalsize * 1024 * 1024) {
     || die $!;
 
   if ($out eq '-') {
-    (0 == system "cat $tmp/final/part-*")
+    (0 == system "cat $local_tmp/$tmp/final/part-*")
       || die $!;
   } else {
     ## Copy the result to HDFS
-    (0 == system("$DFS_PUT $out $out 1>/dev/null"))
+    (0 == system("$DFS_PUT $local_tmp/$out $out 1>/dev/null"))
       || die $!;
     print STDERR "Done. Search results are in $out.\n";
   }
 
   ## Delete the local files (and folders, if empty)
-  system("rm -rf $tmp/* $tmp/.* 2>/dev/null; rmdir -p $tmp 2>/dev/null; rm -rf $out/* $out/.* 2>/dev/null; rmdir -p $out 2>/dev/null");
+#  system("rm -rf $tmp/* $tmp/.* 2>/dev/null; rmdir -p $tmp 2>/dev/null; rm -rf $out/* $out/.* 2>/dev/null; rmdir -p $out 2>/dev/null");
+  system("rm -rf $local_tmp");
 }
 
 (0 == system("rm $local_output 2>/dev/null"))
