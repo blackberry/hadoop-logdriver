@@ -394,11 +394,11 @@ elsif ($forceremote || $size > $maxlocalsize * 1024 * 1024) {
   }
 
   ## Delete the local files (and folders, if empty)
-#  system("rm -rf $tmp/* $tmp/.* 2>/dev/null; rmdir -p $tmp 2>/dev/null; rm -rf $out/* $out/.* 2>/dev/null; rmdir -p $out 2>/dev/null");
+  ## system("rm -rf $tmp/* $tmp/.* 2>/dev/null; rmdir -p $tmp 2>/dev/null; rm -rf $out/* $out/.* 2>/dev/null; rmdir -p $out 2>/dev/null");
   system("rm -rf $local_tmp");
 }
 
-(0 == system("rm $local_output 2>/dev/null"))
+(0 == system("rm -rf $local_output 2>/dev/null"))
   || die $!;
 
 ## END
