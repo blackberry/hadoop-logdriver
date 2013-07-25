@@ -52,7 +52,8 @@ my $DATE_FORMAT       = "RFC5424";
 ##  - outputDir
 
 ## Generate filename to temporarily store output of mapreduce jobs
-my $local_output = `mktemp logsearch.tmp.XXXXX`;
+my $local_output = `mktemp`;
+chomp $local_output;
 
 ## Other options
 my $date_format = $DATE_FORMAT;
