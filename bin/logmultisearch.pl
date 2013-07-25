@@ -52,9 +52,11 @@ my $DATE_FORMAT       = "RFC5424";
 ##  - endTime (Same as start)
 ##  - outputDir
 
-## Generate filename to temporarily store output of mapreduce jobs
+## Generate filename to temporarily store output of mapreduce jobs and pig logs
 my $local_output = `mktemp`;
 chomp $local_output;
+my $pig_tmp = `mktemp`;
+chomp $pig_tmp
 
 ## Other options
 my $date_format = $DATE_FORMAT;
@@ -325,7 +327,7 @@ elsif ($forceremote || $size > $maxlocalsize * 1024 * 1024) {
   }
 
   my $pig_cmd = "pig -Dmapred.job.queue.name=$queue_name -Dpig.additional.jars=$additional_jars $pig_opts $props"
-          . " -f $PIG_DIR/formatAndSort.pg $redirects 1>&2";
+          . " -l $pig_tmp -f $PIG_DIR/formatAndSort.pg $redirects 1>&2";
 
   $quiet or print STDERR "Running: $pig_cmd\n";
   (0 == system $pig_cmd)
@@ -368,7 +370,7 @@ elsif ($forceremote || $size > $maxlocalsize * 1024 * 1024) {
   }
 
   my $pig_cmd = "HADOOP_CONF_DIR=/dev/null /usr/lib/pig/bin/pig -Dpig.additional.jars=$additional_jars $pig_opts $props"
-          . " -x local -f $PIG_DIR/formatAndSortLocal.pg $redirects 1>&2";
+          . " -l $pig_tmp -x local -f $PIG_DIR/formatAndSortLocal.pg $redirects 1>&2";
 
   ## Copy the tmp folder from HDFS to the local directory, and delete the remote folder
   (0 == system("mkdir -p $tmp")) 
