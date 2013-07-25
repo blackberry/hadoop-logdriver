@@ -55,7 +55,7 @@ my $DATE_FORMAT       = "RFC5424";
 my $local_output = `mktemp`;
 chomp $local_output;
 my $pig_tmp = `mktemp`;
-chomp $pig_tmp
+chomp $pig_tmp;
 
 ## Other options
 my $date_format = $DATE_FORMAT;
