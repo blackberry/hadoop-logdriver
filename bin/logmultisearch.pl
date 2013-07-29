@@ -373,12 +373,11 @@ elsif ($forceremote || $size > $maxlocalsize * 1024 * 1024) {
           . " -l $pig_tmp -x local -f $PIG_DIR/formatAndSortLocal.pg $redirects 1>&2";
 
   ## Copy the tmp folder from HDFS to the local directory, and delete the remote folder
-  (0 == system("mkdir -p $tmp")) 
+  $quiet or print STDERR "Running $DFS_GET $tmp $local_tmp/$tmp\n";
+  (0 == system("$DFS_GET $tmp $local_tmp/$tmp"))
     || die $!;
-  $quiet or print STDERR "Running $DFS_GET $tmp ./tmp\n";
-  (0 == system("$DFS_GET $tmp ./tmp"))
-    || die $!;
-  $quiet or print STDERR "Running $rm_tmp_cmd\n";
+
+  $quiet or print STDERR "Running $DFS_RMR $tmp\n";
   (0 == system $rm_tmp_cmd)
     || die $!;
 
