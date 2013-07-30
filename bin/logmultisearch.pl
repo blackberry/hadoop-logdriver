@@ -43,7 +43,7 @@ my $LOGDRIVER_HDEPLOY = 'hadoop-deploy/logdriver-hdeploy.jar';
 my $PIG_DIR           = "$LOGDRIVER_HOME/pig";
 my $DATE_FORMAT       = "RFC5424";
 
-## The arguements are 
+## The arguments are 
 ##  - strings
 ##  - dc number
 ##  - service
@@ -57,6 +57,18 @@ my $local_output = `mktemp`;
 chomp $local_output;
 my $pig_tmp = `mktemp`;
 chomp $pig_tmp;
+
+## Create local variable with suggestions for diagnosing errors
+my $error_output = "
+
+    Please verify the DC and service names, as well
+    as that logs exist during the specified time range.
+    Use the \"hdfs dfs -ls /service\" command to get started.
+
+    Also note that logsearch tools cannot be run as the HDFS user.
+
+    For more detailed error output, re-run your command with the -v flag.
+";
 
 ## Other options
 my $date_format = $DATE_FORMAT;
@@ -208,6 +220,7 @@ $pig_opts .= " -Dpig.exec.reducers.bytes.per.reducer=" . (100*1000*1000);
 
 ## Add any overridden -D options from the command line
 for my $opt (@D_options) {
++
   $mr_opts  .= ' ' . $opt;
   $pig_opts .= ' ' . $opt;
 }
@@ -266,7 +279,7 @@ $quiet or print STDERR "Running: $hput_cmd\n";
 print STDERR "Searching...\n";
 $quiet or print STDERR "Running: $mr_cmd\n";
 (0 == system $mr_cmd)
-  || die $!;
+  || die "\n    Error running mapreduce job." . $error_output . "\nCommand stopped";
 
 #Before sorting, determine the size of the results found
 my $foundresults = 0;
