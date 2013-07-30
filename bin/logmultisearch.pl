@@ -347,8 +347,7 @@ elsif ($forceremote || $size > $maxlocalsize * 1024 * 1024) {
     || die $!;
 
   if ($out eq '-') {
-    (0 == system "$DFS_CAT $tmp/final/part-*")
-      || die $!;
+    system "$DFS_CAT $tmp/final/part-*"
   } else {
     print STDERR "Done. Search results are in $out.\n";
   }
@@ -399,8 +398,7 @@ elsif ($forceremote || $size > $maxlocalsize * 1024 * 1024) {
     || die $!;
 
   if ($out eq '-') {
-    (0 == system "cat $local_tmp/$tmp/final/part-*")
-      || die $!;
+    system "cat $local_tmp/$tmp/final/part-*"
   } else {
     ## Copy the result to HDFS
     (0 == system("$DFS_PUT $local_tmp/$out $out 1>/dev/null"))
