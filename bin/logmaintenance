@@ -23,14 +23,21 @@ run_logmaintenance() {
     return 0
   fi
 
-  tmpdir=$LOGMAINTENANCE_LOG_DIR/$date.tmp.$(date +%s).$$
+  ## pull out the entries in the line
+  read username dc service principal keytab options <<< $line
+
+  if [[ "x$service" == "x" ]]
+  then
+    tmpdir=$LOGMAINTENANCE_LOG_DIR/$date.unknown.$(date +%s).$$
+  else
+    # replace slashes with underscores for use in the filename
+    service_esc=${service//\//_}
+    tmpdir=$LOGMAINTENANCE_LOG_DIR/$date.$service_esc.$(date +%s).$$
+  fi
   mkdir -p $tmpdir
 
   ## Set the location for the Kerberos ticket cache
   export KRB5CCNAME=$tmpdir/krb5_cc
-
-  ## pull out the entries in the line
-  read username dc service principal keytab options <<< $line
 
   (
     ## All fields up to keytab must be defined
