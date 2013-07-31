@@ -18,7 +18,7 @@
  * <p>
  * Usage: [genericOptions] searchString baseDir filePrefix startTime endTime output
  * <p>
- * For example: -Djob.wait=true 'PIN=12345678' /service/relay/logs wt 1332939045000 1332942648000 /user/me/grep
+ * For example: -Djob.wait=true 'ERR=12345678' /service/web/logs app 1332939045000 1332942648000 /user/me/grep
  * 
  */
 package com.rim.logdriver.util;
