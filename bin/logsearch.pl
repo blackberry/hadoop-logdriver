@@ -145,9 +145,8 @@ Options:
   -i                  Make search case insensitive.
   -r                  Force remote sort.
   -l                  Force local sort.
-  -dateFormat=FORMAT  Valid formats are RFC822, RFC3164 (this is broken in the
-                      same way Relay logs are), RFC5424 (default), or any
-                      valid format string for FastDateFormat.
+  -dateFormat=FORMAT  Valid formats are RFC822, RFC3164 (zero padded day),
+                      RFC5424 (default), or any valid format string for FastDateFormat.
   -fieldSeparator=X   The separator to use to separate fields in intermediate
                       files.  Defaults to 'INFORMATION SEPARATOR ONE' (U+001F).
 END
