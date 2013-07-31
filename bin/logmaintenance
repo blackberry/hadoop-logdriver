@@ -22,11 +22,11 @@ run_logmaintenance() {
 
   if [[ "x$service" == "x" ]]
   then
-    tmpdir=$LOGMAINTENANCE_LOG_DIR/$date.unknown.$(date +%s).$$
+    tmpdir=$LOGMAINTENANCE_LOG_DIR/$date.tmp.unknown.$(date +%s).$$
   else
     # replace slashes with underscores for use in the filename
     service_esc=${service//\//_}
-    tmpdir=$LOGMAINTENANCE_LOG_DIR/$date.$service_esc.$(date +%s).$$
+    tmpdir=$LOGMAINTENANCE_LOG_DIR/$date.tmp.$service_esc.$(date +%s).$$
   fi
 
   mkdir -p $tmpdir
