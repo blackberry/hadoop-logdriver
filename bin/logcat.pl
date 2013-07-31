@@ -43,7 +43,7 @@ my $LOGDRIVER_HDEPLOY = 'hadoop-deploy/logdriver-hdeploy.jar';
 my $PIG_DIR           = "$LOGDRIVER_HOME/pig";
 my $DATE_FORMAT       = "RFC5424";
 
-## The arguements are 
+## The arguments are 
 ##  - dc number
 ##  - service
 ##  - component
@@ -51,8 +51,23 @@ my $DATE_FORMAT       = "RFC5424";
 ##  - endTime (Same as start)
 ##  - outputDir
 
-## Generate filename to temporarily store output of mapreduce jobs
-my $local_output = `mktemp logsearch.tmp.XXXXX`;
+## Generate filename to temporarily store output of mapreduce jobs and pig logs
+my $local_output = `mktemp`;
+chomp $local_output;
+my $pig_tmp = `mktemp`;
+chomp $pig_tmp;
+
+## Create local variable with suggestions for diagnosing errors
+my $error_output = "
+
+    Please verify the DC and service names, as well
+    as that logs exist during the specified time range.
+    Use the \"hdfs dfs -ls /service\" command to get started.
+
+    Also note that logsearch tools cannot be run as the HDFS user.
+
+    For more detailed error output, re-run your command with the -v flag.
+";
 
 ## Other options
 my $date_format = $DATE_FORMAT;
@@ -193,22 +208,14 @@ $pig_opts .= " -Dpig.exec.reducers.bytes.per.reducer=" . (100*1000*1000);
 
 ## Add any overridden -D options from the command line
 for my $opt (@D_options) {
++
   $mr_opts  .= ' ' . $opt;
   $pig_opts .= ' ' . $opt;
 }
 
 ## Add the required properties
 my $props = '';
-$props .= " -param tmpdir=" . escape($tmp);
 $props .= " -param dateFormat=" . escape($date_format);
-
-## Check for an out of '-', meaning write to stdout
-if ($out eq '-') {
-  $props.= " -param out=$tmp/final";
-}
-else {
-  $props .= " -param out=" . escape($out);
-}
 $props .= " -param fs=" . escape($field_separator_in_hex);
 
 my $mkdir_cmd = "$DFS_MKDIR $tmp $redirects 1>&2";
@@ -233,7 +240,7 @@ $quiet or print STDERR "Running: $mkdir_cmd\n";
 print STDERR "Gathering logs...\n";
 $quiet or print STDERR "Running: $mr_cmd\n";
 (0 == system $mr_cmd)
-  || die $!;
+  || die "\n    Error running mapreduce job." . $error_output . "\nCommand stopped";
 
 #Before sorting, determine the size of the results found
 my $foundresults = 0;
@@ -281,17 +288,27 @@ elsif ($forceremote || $size > $maxlocalsize * 1024 * 1024) {
   } else {
     print STDERR "Results are ".(int(100*$size/(1024*1024))/100)." MB. Using non-local sort...\n";
   }
+  
+  ## Set input parameter for pig job
+  $props .= " -param tmpdir=" . escape($tmp);
+
+  ## Check for an out of '-', meaning write to stdout
+  if ($out eq '-') {
+    $props.= " -param out=$tmp/final";
+  }
+  else {
+    $props .= " -param out=" . escape($out);
+  }
 
   my $pig_cmd = "pig -Dmapred.job.queue.name=$queue_name -Dpig.additional.jars=$additional_jars $pig_opts $props"
-          . " -f $PIG_DIR/formatAndSort.pg $redirects 1>&2";
+          . " -l $pig_tmp -f $PIG_DIR/formatAndSort.pg $redirects 1>&2";
 
   $quiet or print STDERR "Running: $pig_cmd\n";
   (0 == system $pig_cmd)
     || die $!;
 
   if ($out eq '-') {
-    (0 == system "$DFS_CAT $tmp/final/part-*")
-      || die $!;
+    system "$DFS_CAT $tmp/final/part-*"
   } else {
     print STDERR "Done. Search results are in $out.\n";
   }
@@ -308,15 +325,31 @@ elsif ($forceremote || $size > $maxlocalsize * 1024 * 1024) {
     print STDERR "Results are ".(int(100*$size/(1024*1024))/100)." MB. Sorting locally...\n";
   }
 
-  my $pig_cmd = "HADOOP_CONF_DIR=/dev/null /usr/lib/pig/bin/pig -Dpig.additional.jars=$additional_jars $pig_opts $props"
-          . " -x local -f $PIG_DIR/formatAndSortLocal.pg $redirects 1>&2";
+  ## Create a local tmp folder for the data needed by format and sort
+  my $local_tmp = `mktemp -d`;
+  chomp $local_tmp;
+  (0 == system("mkdir $local_tmp/tmp")) 
+    || die $!;
 
-  ## Copy the tmp folder from HDFS to the local directory, and delete the remote folder
-  (0 == system("mkdir -p $tmp")) 
+  ## Set input parameter for pig job
+  $props .= " -param tmpdir=$local_tmp/$tmp";
+
+  ## Check for an out of '-', meaning write to stdout
+  if ($out eq '-') {
+    $props.= " -param out=$local_tmp/$tmp/final";
+  }
+  else {
+    $props .= " -param out=$local_tmp/$out";
+  }
+
+  my $pig_cmd = "HADOOP_CONF_DIR=/dev/null /usr/lib/pig/bin/pig -Dpig.additional.jars=$additional_jars $pig_opts $props"
+          . " -l $pig_tmp -x local -f $PIG_DIR/formatAndSortLocal.pg $redirects 1>&2";
+
+  ## Copy the tmp folder from HDFS to the local tmp directory, and delete the remote folder
+  $quiet or print STDERR "Running $DFS_GET $tmp $local_tmp/$tmp\n";
+  (0 == system("$DFS_GET $tmp $local_tmp/$tmp"))
     || die $!;
-  $quiet or print STDERR "Running $DFS_GET $tmp ./tmp\n";
-  (0 == system("$DFS_GET $tmp ./tmp"))
-    || die $!;
+
   $quiet or print STDERR "Running $DFS_RMR $tmp\n";
   (0 == system $rm_tmp_cmd)
     || die $!;
@@ -326,20 +359,20 @@ elsif ($forceremote || $size > $maxlocalsize * 1024 * 1024) {
     || die $!;
 
   if ($out eq '-') {
-    (0 == system "cat $tmp/final/part-*")
-      || die $!;
+    system "cat $local_tmp/$tmp/final/part-*"
   } else {
     ## Copy the result to HDFS
-    (0 == system("$DFS_PUT $out $out 1>/dev/null"))
+    (0 == system("$DFS_PUT $local_tmp/$out $out 1>/dev/null"))
       || die $!;
     print STDERR "Done. Search results are in $out.\n";
   }
 
   ## Delete the local files (and folders, if empty)
-  system("rm -rf $tmp/* $tmp/.* 2>/dev/null; rmdir -p $tmp 2>/dev/null; rm -rf $out/* $out/.* 2>/dev/null; rmdir -p $out 2>/dev/null");
+  ## system("rm -rf $tmp/* $tmp/.* 2>/dev/null; rmdir -p $tmp 2>/dev/null; rm -rf $out/* $out/.* 2>/dev/null; rmdir -p $out 2>/dev/null");
+  system("rm -rf $local_tmp");
 }
 
-(0 == system("rm $local_output 2>/dev/null"))
+(0 == system("rm -rf $local_output 2>/dev/null"))
   || die $!;
 
 ## END
