@@ -28,7 +28,7 @@ This walks through a generic configuration of Sawmill.  Please review the config
 
 In this example, we use 'web' as the service located in 'dc1' containing the component 'app'.
 
-* Each service should have an administrative user and group that is unique.  This group is used for sawmill data loading and [Log Maintainance](LogMaintainence.md), and should not be used for any other purpose.
+* Each service should have an administrative user and group that is unique.  This group is used for sawmill data loading and [Log Maintainance](LogMaintenance.md), and should not be used for any other purpose.
 * HDFS basic paths need to be created.  For example, <code>/service/dc1/web/logs/</code> should exist for the service 'web' in 'dc1'.
 * A Kerberos key capable of writing to the HDFS directory is required, or impersonation must be set up for the sawmill user.
 
