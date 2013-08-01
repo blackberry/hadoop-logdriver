@@ -1,4 +1,4 @@
-First, read [[DataModel]].
+First, read [DataModel](DataModel.md).
 
 Now, consider this example.
 
@@ -48,7 +48,7 @@ Release Write Lock                         ||
 
 In order facilitate distributed locking, we are using Zookeeper.
 
-The class <code>com.rim.logdriver.locks.LockUtil</code> provides an implementation of locking based on the standard Zookeeper recipe (http://zookeeper.apache.org/doc/trunk/recipes.html#Shared+Locks).  The locks are based on a combination of  Service Path, Timestamp and Component Name (see definitions of these terms at [[Data Model]])
+The class <code>com.rim.logdriver.locks.LockUtil</code> provides an implementation of locking based on the standard Zookeeper recipe (http://zookeeper.apache.org/doc/trunk/recipes.html#Shared+Locks).  The locks are based on a combination of  Service Path, Timestamp and Component Name (see definitions of these terms in the [Data Model](DataModel.md))
 
 Locks are done at this granularity because data could be moving between any of the subdirectories within the Service Directory, but the data will never change hour or Component Name.  So this level can ensure consistency when data is being moved.
 

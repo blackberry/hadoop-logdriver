@@ -81,7 +81,7 @@ For example, the directories that exist for a given hour may include:
 
 ## File Names
 
-Files are stored in the [[BoomFiles]] format.
+Files are stored in the [Boom](BoomFiles.md) format.
 
 Each file is named using the convention <code>{Component Name}.{Application Specific}.bm</code>.
 
@@ -125,4 +125,4 @@ In this system, all of the log data must be available at all times, to ensure th
 
 But since the data is also being moved and transformed by the system, a user who simple uses 'ls' to find the files they want to process may find that the files have been moved or deleted before the job launches!
 
-To avoid these issues, see [[Concurrency]].
+To avoid these issues, see [Concurrency and Locking](Concurrency.md).

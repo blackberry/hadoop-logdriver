@@ -1,6 +1,6 @@
 Before we begin, a quick description of the Boom format is appropriate.
 
-Boom is our custom data storage format for logs.  We put a lot of effort into building a format that allowed efficient storage, search, compression, ordering, etc.  Full details about the boom format can be read on the [[BoomFiles]] wiki page.  The only thing you really need to know here is that the boom format reader will provide a few pieces of information that will only be useful for ordering the output.
+Boom is our custom data storage format for logs.  We put a lot of effort into building a format that allowed efficient storage, search, compression, ordering, etc.  Full details about the boom format can be read on the [Boom Files](BoomFiles.md) document.  The only thing you really need to know here is that the boom format reader will provide a few pieces of information that will only be useful for ordering the output.
 
 ## Reading Data In
 Reading data into pig from boom-formatted stuff requires using the custom loader provided within the logdriver utilities.  

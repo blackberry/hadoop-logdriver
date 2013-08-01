@@ -1,8 +1,0 @@
-# Building and installing Logdriver
-
-Building
---------
-
-The build system uses maven, and generates RPMs and Debs.  To build:
-
-# mvn clean package install rpm:rpm

@@ -23,7 +23,7 @@ If you need to get the timestamp and message for a log line, simply use
     String originalLogLine = myDateFormat.format(timestamp) + " " + message;
 
 ## Boom File Format
-A Boom file is a specific type of Avro [[Object Container File|http://avro.apache.org/docs/1.6.3/spec.html#Object+Container+Files]].  Familiarize yourself with those docs before you keep going.
+A Boom file is a specific type of Avro [Object Container File](http://avro.apache.org/docs/1.6.3/spec.html#Object+Container+Files).  Familiarize yourself with those docs before you keep going.
 
 Specifically, we always use a compression codec of 'deflate' and we always use the following Schema:
 
