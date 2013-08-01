@@ -1,16 +1,12 @@
-If you've read the documentation, you're aware that the logs are all stored in a non-standard format, with various concurrency concerns that can break your jobs if you're not careful.  So how do you actually use the logs?
+# Searching Logs
 
-# Pre-canned tools
-
-In gathering our requirements, the most common requirement by far was the ability to get all logs that contain some given string.  So there are a number of tools available to do just that.
-
-In our deployment there is a <code>logdriver/bin/</code> directory that contains the following tools:
+In gathering our requirements, the most common requirement by far was the ability to get all logs that contain some given string.  So there are a number of tools available to do just that.  These tools are generally installed in the path of an access node capable of full interaction with the Hadoop cluster.
 
 ```none
-logcat         - turns data from Boom files into raw text.
-logsearch      - searches for log lines that match a literal string.
-logmultisearch - search for lines which contain any of a list of literal strings.
+logsearch      - search for log lines which contain a literal string.
+logmultisearch - search for lines which contain any or all of a list of literal strings.
 loggrep        - search for lines which match a regular expression.
+logcat         - returns all data for a given time range.
 ```
 
 Each of these tools will return a formatted, sorted, set of logs in plain text format.
@@ -41,7 +37,7 @@ RFC5424 2012-06-06T12:34:56.789+00:00
 
 ### Reading the results
 
-All of these tools write their results to a number of files in the directory in HDFS.  In order to see the data in your console, you can use the command
+All of these tools write their results to a number of files in the directory in HDFS (unless you specify standard out).  In order to see the data in your console, you can use the command
 
 ```
 hdfs dfs -cat OUTPUT_DIR/part-*
@@ -53,28 +49,9 @@ If you'd like to copy the output to your local disk, use
 hdfs dfs -get OUTPUT_DIR/part-* LOCAL_DIR
 ```
 
-### logcat 
 
-```
-Example:
-logcat -v dc1 web applogs '30 minutes ago' 'now' -
-logcat -v dc1 web applogs '30 minutes ago' 'now' - | grep ERROR | wc -l
-logcat -v dc1 web applogs '2013-01-16 12:00:00' '2013-01-17 12:00:00' -
-
-Usage: logcat [OPTIONS] DC SERVICE COMPONENT START END OUTPUT_DIR
-Note:
-  If OUTPUT_DIR is '-', then results are written to stdout.
-Options:
-  -v                  Verbose output.
-  -r                  Force remote sort.
-  -l                  Force local sort.
-  -dateFormat=FORMAT  Valid formats are RFC822, RFC3164 (zero padded day),
-                      RFC5424 (default), or any valid format string for FastDateFormat.
-  -fieldSeparator=X   The separator to use to separate fields in intermediate
-                      files.  Defaults to 'INFORMATION SEPARATOR ONE' (U+001F).
-```
-
-### logsearch
+### <code>/usr/bin/logsearch</code>
+logsearch is, by far, the most optimized and efficient of the tools.  This tool will do a simple, straight string match and return lines that contain the requested string.
 
 ```
 Example:
@@ -96,7 +73,8 @@ Options:
 
 <code>STRING</code> is the string to search for in the line.  Lines which contain this string anywhere (excluding the timestamp at the start of the line) will be returned.
 
-### logmultisearch
+### <code>/usr/bin/logmultisearch</code>
+logmultisearch is a moderately optimal tool, designed to provide basic AND and OR search functionality.  It is not as efficient as logsearch.
 
 ```
 Example:
@@ -120,7 +98,8 @@ Options:
 
 logmultisearch takes the strings to search for in one of three different formats.  If the given option is the name of a directory on the local filesystem, then all files in that directory are assumed to contain search strings, one per line.  If the option is the name of a file on the local filesystem, then that file is assumed to contain all of the search strings, one per line.  Otherwise, that argument is assumed to be the only search string.  Any line matching one or more of the given search strings will be returned.
 
-### loggrep
+### <code>/usr/bin/loggrep</code>
+loggrep is the most functional tool, supporting full regular expressions, but is by far the slowest of the three search tools.
 
 ```
 Example:
@@ -142,7 +121,29 @@ Options:
 
 <code>REGEX</code> is a Java style regular expression.  Any log line that matches the regular expression will be returned.  Note that the timestamp is not included in the line when checking for a match.  For more information on Java regular expressions, see the [JavaDoc for Pattern](http://docs.oracle.com/javase/6/docs/api/java/util/regex/Pattern.html).
 
-# Pre-canned mapreduce jobs
+### logcat 
+The logcat tool provides a straight dump of all content within a given time range.
+
+```
+Example:
+logcat -v dc1 web applogs '30 minutes ago' 'now' -
+logcat -v dc1 web applogs '30 minutes ago' 'now' - | grep ERROR | wc -l
+logcat -v dc1 web applogs '2013-01-16 12:00:00' '2013-01-17 12:00:00' -
+
+Usage: logcat [OPTIONS] DC SERVICE COMPONENT START END OUTPUT_DIR
+Note:
+  If OUTPUT_DIR is '-', then results are written to stdout.
+Options:
+  -v                  Verbose output.
+  -r                  Force remote sort.
+  -l                  Force local sort.
+  -dateFormat=FORMAT  Valid formats are RFC822, RFC3164 (zero padded day),
+                      RFC5424 (default), or any valid format string for FastDateFormat.
+  -fieldSeparator=X   The separator to use to separate fields in intermediate
+                      files.  Defaults to 'INFORMATION SEPARATOR ONE' (U+001F).
+```
+
+## Expanding on these tools
 
 Sometimes you want more than just a dump of the logs.  So let's look at how the tools work.
 
@@ -154,25 +155,3 @@ Each of the provided tools does the same thing
 If you want to do something other than format the dates and sort the output, then you can follow this same pattern and substitute your own Pig script.
 
 The tools listed above are all Perl scripts, and you can use them as a start for your own tools.
-
-# Custom mapreduce jobs
-
-Occasionally, running one of the pre-canned jobs will not be appropriate.  This is generally the case when the amount of data output from the mapreduce job is large (more than a few GB), and the job is run repeatedly.  In this case, you may need to write your own mapreduce job.
-
-```
-FileManager fm = new FileManager(conf);
-List<PathInfo> paths = fm.getPathInfo(dcNumber, service, component, startTime, endTime);
-
-try {
-  // Lock, then get the real paths
-  fm.acquireReadLocks(paths);
-  List<String> inputPaths = fm.getInputPaths(pi);
- 
-  // Run your job against the files listed in inputPaths.
-
-} finally {
-  fm.releaseReadLocks(paths);
-}
-```
-
-Important: In order to avoid deadlocks, you must collect all of your paths, and call acquireReadLocks() only one time.  It will ensure that the paths are processed in a consistent order.  Failure to do so may result in dead locks which impact the entire cluster.

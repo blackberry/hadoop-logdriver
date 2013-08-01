@@ -2,17 +2,21 @@ Before we begin, a quick description of the Boom format is appropriate.
 
 Boom is our custom data storage format for logs.  We put a lot of effort into building a format that allowed efficient storage, search, compression, ordering, etc.  Full details about the boom format can be read on the [Boom Files](BoomFiles.md) document.  The only thing you really need to know here is that the boom format reader will provide a few pieces of information that will only be useful for ordering the output.
 
+## Library Locations
+In LogDriver, there is a library that can be included in 'hadoop jar' commands or Pig scripts in order to make the LogDriver tools available.  It is installed by default at
+```
+/usr/lib/logdriver/jar-with-dependencies/logdriver-with-dependencies.jar
+```
+
 ## Reading Data In
 Reading data into pig from boom-formatted stuff requires using the custom loader provided within the logdriver utilities.  
 
-First, you have to load in the define the LogDriver utilities that contain the tools to read Boom files.
-
-The relevant jar file is <code>/usr/lib/logdriver/hadoop-deploy/logdriver-core-hdeploy.jar</code>. 
+First, you have to load in the define the LogDriver utilities that contain the tools to read Boom files, mentioned above.
 
 The LoadFunc to load Boom files is <code>com.rim.logdriver.pig.BoomLoadFunc()</code>.  It is useful to create a shorter alias to that.
 ```
 --- Load up the logdriver utilities
-REGISTER /usr/lib/logdriver/hadoop-deploy/logdriver-core-hdeploy.jar
+REGISTER /usr/lib/logdriver/jar-with-dependencies/logdriver-with-dependencies.jar
 
 --- Create an alias to the load function
 DEFINE bmLoad com.rim.logdriver.pig.BoomLoadFunc();
