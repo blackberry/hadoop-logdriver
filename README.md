@@ -1,18 +1,13 @@
-LogDriver
-=========
+## Overview
 
-LogDriver is a toolset built at BlackBerry to load and manage logging content on Apache Hadoop for services without any
-knowledge of what that log content looks like.
+LogDriver suite of tools and applications for logging management on Hadoop.  It is primary built and maintained at BlackBerry, but we welcome contributions in any form from the larger community.
 
-Major Components
-----------------
+## Major Features
+* Sawmill:  A low profile, high throughput syslog adapter designed as a drop-in replacement for Flume for delivery of syslog content to HDFS.
+* Merge Job:  An Oozie workflow which takes content delivered by Sawmill and performs a lightweight aggregation of the content into large files.
+* Filter Job:  An Oozie workflow which will apply data lifecycle rules, filtering and deleting data according to configuration.
+* Data Access Tools:  A set of tools designed to be executed from the command line, replacing common log management functions such as cat and grep.
+* Data Reporting Tools:  A set of tools designed to collect statistical metadata of various log content.
+* Strong Security Model:  Full support for Kerberos+LDAP based authentication and strict security models.
 
-This project contains the following major components:
-
-* Sawmill:
-        A low profile, high throughput syslog adapter which serializes and compresses log content into the Apache Avro format
-* Merge-Filter Job:
-        A map-only set of jobs that will merge multiple small files from Sawmill into large format files better suited to Hadoop, and apply data rentention policies on all data.  This job is intended to run hourly.
-* Access Tools:
-        A set of tools for safely accessing, reconstructing and searching log content.  This includes some thin metadata management, pig UDFs, and commandline tools akin to grep.
-
+For further information, please see our [Documentation](doc/README.md)

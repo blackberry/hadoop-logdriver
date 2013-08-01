@@ -17,20 +17,22 @@
 run_logmaintenance() {
   line="$*"
 
-  ## catch comments and blank lines
-  if [[ "$line" =~ "^[:blank:]*(#.*)?$" ]]
+  ## pull out the entries in the line
+  read username dc service principal keytab options <<< $line
+
+  if [[ "x$service" == "x" ]]
   then
-    return 0
+    tmpdir=$LOGMAINTENANCE_LOG_DIR/$date.tmp.unknown.$(date +%s).$$
+  else
+    # replace slashes with underscores for use in the filename
+    service_esc=${service//\//_}
+    tmpdir=$LOGMAINTENANCE_LOG_DIR/$date.tmp.$service_esc.$(date +%s).$$
   fi
 
-  tmpdir=$LOGMAINTENANCE_LOG_DIR/$date.tmp.$(date +%s).$$
   mkdir -p $tmpdir
 
   ## Set the location for the Kerberos ticket cache
   export KRB5CCNAME=$tmpdir/krb5_cc
-
-  ## pull out the entries in the line
-  read username dc service principal keytab options <<< $line
 
   (
     ## All fields up to keytab must be defined
@@ -164,7 +166,9 @@ mkdir -p $LOGMAINTENANCE_LOG_DIR/locks/
   export date
 
   export -f run_logmaintenance
-  xargs -a $LOGDRIVER_CONF_DIR/logmaintenance/logmaintenance.conf -L 1 -P $MAX_CONCURRENT_JOBS -I '{}' bash -c 'run_logmaintenance "$@"' _ {}
+
+  egrep -v "^[[:blank:]]*(#.*)?$" $LOGDRIVER_CONF_DIR/logmaintenance/logmaintenance.conf \
+    | xargs -L 1 -P $MAX_CONCURRENT_JOBS -I '{}' bash -c 'run_logmaintenance "$@"' _ {}
 
   ## Consolidate logs
   cat $LOGMAINTENANCE_LOG_DIR/$date.*/log.txt > $LOGMAINTENANCE_LOG_DIR/$date.log
