@@ -1,5 +1,5 @@
 ## Documentation
-## Build and Installation
+### Build and Installation
 * [Build and Installation](Building.md)
 * [Configuration - Sawmill](Sawmill.md)
 * [Configuration - Log Maintenance](LogMaintenance.md)
